@@ -1,6 +1,6 @@
-module github.com/crewjam/saml
+module github.com/lorodoes/saml
 
-go 1.16
+go 1.20
 
 require (
 	github.com/beevik/etree v1.1.0
