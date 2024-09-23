@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -13,6 +13,7 @@ import (
 	xrv "github.com/mattermost/xml-roundtrip-validator"
 
 	"github.com/lorodoes/saml"
+	"github.com/lorodoes/saml/logger"
 )
 
 // ParseMetadata parses arbitrary SAML IDP metadata.
@@ -61,12 +62,16 @@ func FetchMetadata(ctx context.Context, httpClient *http.Client, metadataURL url
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.DefaultLogger.Printf("Error while closing response body during fetch metadata: %v", err)
+		}
+	}()
 	if resp.StatusCode >= 400 {
 		return nil, httperr.Response(*resp)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
