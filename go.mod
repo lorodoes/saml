@@ -2,6 +2,7 @@ module github.com/lorodoes/saml
 
 go 1.20
 
+
 require (
 	github.com/beevik/etree v1.2.0
 	github.com/crewjam/httperr v0.2.0
@@ -13,7 +14,6 @@ require (
 	github.com/russellhaering/goxmldsig v1.4.0
 	github.com/stretchr/testify v1.8.4
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 	github.com/zenazn/goji v1.0.1
