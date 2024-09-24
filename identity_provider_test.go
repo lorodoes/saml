@@ -25,7 +25,7 @@ import (
 	"gotest.tools/golden"
 
 	"github.com/beevik/etree"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	dsig "github.com/russellhaering/goxmldsig"
 
 	"github.com/lorodoes/saml/logger"
@@ -104,7 +104,7 @@ func NewIdentityProviderTest(t *testing.T, opts ...idpTestOpts) *IdentityProvide
 		rv, _ := time.Parse("Mon Jan 2 15:04:05 MST 2006", "Mon Dec 1 01:57:09 UTC 2015")
 		return rv
 	}
-	jwt.TimeFunc = TimeNow
+	jwt.WithTimeFunc(TimeNow)
 	RandReader = &testRandomReader{}                // TODO(ross): remove this and use the below generator
 	xmlenc.RandReader = rand.New(rand.NewSource(0)) //nolint:gosec  // deterministic random numbers for tests
 

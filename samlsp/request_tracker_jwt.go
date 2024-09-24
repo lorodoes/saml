@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/lorodoes/saml"
 )
@@ -26,7 +26,7 @@ var _ TrackedRequestCodec = JWTTrackedRequestCodec{}
 // JWTTrackedRequestClaims represents the JWT claims for a tracked request.
 type JWTTrackedRequestClaims struct {
 	jwt.RegisteredClaims
-	TrackedRequest
+	TrackedRequest   TrackedRequest
 	SAMLAuthnRequest bool `json:"saml-authn-request"`
 }
 
@@ -51,25 +51,40 @@ func (s JWTTrackedRequestCodec) Encode(value TrackedRequest) (string, error) {
 
 // Decode returns a Tracked request from an encoded string.
 func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
-	parser := jwt.Parser{
-		ValidMethods: []string{s.SigningMethod.Alg()},
-	}
 	claims := JWTTrackedRequestClaims{}
-	_, err := parser.ParseWithClaims(signed, &claims, func(*jwt.Token) (interface{}, error) {
+
+	// Parse the token with claims and custom keyfunc
+	token, err := jwt.ParseWithClaims(signed, &claims, func(t *jwt.Token) (interface{}, error) {
+		// Validate signing method and return the correct key
+		if t.Method.Alg() != s.SigningMethod.Alg() {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
 		return s.Key.Public(), nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
-	if !claims.VerifyAudience(s.Audience, true) {
+
+	// Check token validity
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	// Claims validation (Audience, Issuer, etc.) using the embedded RegisteredClaims
+	_, err = claims.RegisteredClaims.GetAudience()
+	if err != nil {
 		return nil, fmt.Errorf("expected audience %q, got %q", s.Audience, claims.Audience)
 	}
-	if !claims.VerifyIssuer(s.Issuer, true) {
+	_, err = claims.RegisteredClaims.GetIssuer()
+	if err != nil {
 		return nil, fmt.Errorf("expected issuer %q, got %q", s.Issuer, claims.Issuer)
 	}
 	if !claims.SAMLAuthnRequest {
 		return nil, fmt.Errorf("expected saml-authn-request")
 	}
+
+	// Use the claims subject as the index
 	claims.TrackedRequest.Index = claims.Subject
 	return &claims.TrackedRequest, nil
 }

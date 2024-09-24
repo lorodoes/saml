@@ -110,34 +110,62 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 // GetSession returns the current Session associated with the request, or
 // ErrNoSession if there is no valid session.
 func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
-	log.Debugf("Get Session")
+	log.Debugf("SAML: Get Session")
 	cookie, err := r.Cookie(c.Name)
 	if err == http.ErrNoCookie {
 		log.Debugf("Get Session: Error No Session")
-		log.Debugf("Get Session: Error No Session: %s", err)
+		log.Errorf("Get Session: Error No Session: %s", err)
 		return nil, ErrNoSession
 	} else if err != nil {
-		log.Debugf("Get Session: Error")
+		log.Debugf("Get Session: Error: %s", err)
 		return nil, err
 	}
 
-	uDec, _ := b64.URLEncoding.DecodeString(cookie.Value)
-
-	d, _ := decompressBrotli(uDec)
+	var d string
+	// Check if the cookie is Base64URL encoded and decompress it if it is
+	// If not, just use the cookie value as the session data
+	if isBase64URLEncoded(cookie.Value) {
+		uDec, _ := b64.URLEncoding.DecodeString(cookie.Value)
+		if isByteSlice(uDec) {
+			if isBrotliCompressed(uDec) {
+				d, err := decompressBrotli(uDec)
+				if err != nil {
+					log.Debugf("Get Session: Error Decompress")
+					log.Errorf("Get Session: Error Decompress: %s", err)
+					return nil, err
+				}
+				if isString(d) {
+					log.Debug("We have a string")
+				}
+			}
+		}
+	} else {
+		d = cookie.Value
+		if isString(d) {
+			log.Debug("We have a string")
+		}
+	}
 
 	session, err := c.Codec.Decode(d)
 	if err != nil {
+		log.Info("We Errored")
+		log.Errorf("Error:%s", err)
 		log.Debugf("Get Session decode: Error No Session")
 		return nil, ErrNoSession
 	}
 	log.Debugf("Returning the session")
+	log.Info("We are Returning the session")
 	return session, nil
 }
 
 func compressBrotli(data []byte) []byte {
 	var b bytes.Buffer
 	w := brotli.NewWriterLevel(&b, brotli.BestCompression)
-	w.Write(data)
+	_, err := w.Write(data)
+	if err != nil {
+		log.Errorf("Compression Failed: %s", err)
+		return nil
+	}
 	w.Close()
 	return b.Bytes()
 }
@@ -150,4 +178,31 @@ func decompressBrotli(compressedData []byte) (string, error) {
 		return "", err
 	}
 	return decompressedData.String(), nil
+}
+
+func isBrotliCompressed(data []byte) bool {
+	// Brotli-compressed data usually starts with these bytes
+	if len(data) > 2 && data[0] == 0xCE && data[1] == 0xB2 {
+		return true
+	}
+	return false
+}
+
+func isBase64URLEncoded(s string) bool {
+	// Try to decode the string
+	_, err := b64.URLEncoding.DecodeString(s)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func isByteSlice(v interface{}) bool {
+	_, ok := v.([]byte)
+	return ok
+}
+
+func isString(v interface{}) bool {
+	_, ok := v.(string)
+	return ok
 }

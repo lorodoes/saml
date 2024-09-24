@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/google/uuid"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/lorodoes/saml"
 )
@@ -41,12 +40,12 @@ func (c JWTSessionCodec) New(assertion *saml.Assertion) (Session, error) {
 	now := saml.TimeNow()
 	claims := JWTSessionClaims{}
 	claims.SAMLSession = true
-	claims.Audience = c.Audience
+	claims.Audience = jwt.ClaimStrings{c.Audience}
 	claims.Issuer = c.Issuer
-	claims.IssuedAt = now.Unix()
-	expiresat := now.Add(c.MaxAge).Unix()
-	claims.ExpiresAt = expiresat
-	claims.NotBefore = now.Unix()
+	claims.IssuedAt = jwt.NewNumericDate(now)
+	expiresat := now.Add(c.MaxAge)
+	claims.ExpiresAt = jwt.NewNumericDate(expiresat)
+	claims.NotBefore = jwt.NewNumericDate(now)
 
 	if sub := assertion.Subject; sub != nil {
 		if nameID := sub.NameID; nameID != nil {
@@ -77,7 +76,8 @@ func (c JWTSessionCodec) New(assertion *saml.Assertion) (Session, error) {
 
 	log.Debugf("Attributes: %#v", Attributes)
 
-	strExpiresAt := fmt.Sprintf("%d", expiresat)
+	//strExpiresAt := fmt.Sprintf("%s", expiresat)
+	strExpiresAt := expiresat.String()
 
 	Attributes["ExpiresAtSAML"] = append(Attributes["ExpiresAtSAML"], strExpiresAt)
 
@@ -118,40 +118,34 @@ func (c JWTSessionCodec) Encode(s Session) (string, error) {
 // and returns a Session.
 func (c JWTSessionCodec) Decode(signed string) (Session, error) {
 	log.Debugf("Starting Debug")
-	parser := jwt.Parser{
-		ValidMethods: []string{c.SigningMethod.Alg()},
-	}
+
 	claims := JWTSessionClaims{}
-	_, err := parser.ParseWithClaims(signed, &claims, func(*jwt.Token) (interface{}, error) {
+	// Parse the token with claims and custom keyfunc
+	token, err := jwt.ParseWithClaims(signed, &claims, func(t *jwt.Token) (interface{}, error) {
+		// Validate signing method and return the correct key
+		if t.Method.Alg() != c.SigningMethod.Alg() {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
 		return c.Key.Public(), nil
 	})
 
-	UserId := claims.Attributes["id"]
-	log.Debugf("UserID: %s", UserId)
-	UserIdString := strings.Join(UserId, "")
-	log.Debugf("String UserID: %s", UserIdString)
-	mapstring, ok := saml.UserAttributes[UserIdString]
-	if !ok {
-		return nil, ErrNoSession
-	}
-	log.Debugf("map String: %#v", mapstring)
-	var attributes map[string][]string
-	json.Unmarshal([]byte(mapstring), &attributes)
-	log.Debugf("Map: %#v", attributes)
-	for k, v := range attributes {
-		log.Debugf("key: %s", k)
-		log.Debugf("value: %s", v)
-		claims.Attributes[k] = v
-	}
-
-	// TODO(ross): check for errors due to bad time and return ErrNoSession
+	// Check for errors during parsing
 	if err != nil {
 		return nil, err
 	}
-	if !claims.VerifyAudience(c.Audience, true) {
+
+	// Check token validity
+	if !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	// Claims validation (Audience, Issuer) using the embedded RegisteredClaims
+	_, err = claims.RegisteredClaims.GetAudience()
+	if err != nil {
 		return nil, fmt.Errorf("expected audience %q, got %q", c.Audience, claims.Audience)
 	}
-	if !claims.VerifyIssuer(c.Issuer, true) {
+	_, err = claims.RegisteredClaims.GetIssuer()
+	if err != nil {
 		return nil, fmt.Errorf("expected issuer %q, got %q", c.Issuer, claims.Issuer)
 	}
 	if !claims.SAMLSession {
@@ -162,7 +156,7 @@ func (c JWTSessionCodec) Decode(signed string) (Session, error) {
 
 // JWTSessionClaims represents the JWT claims in the encoded session
 type JWTSessionClaims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	Attributes  Attributes `json:"attr"`
 	SAMLSession bool       `json:"saml-session"`
 }
