@@ -9,7 +9,7 @@ require (
 	github.com/beevik/etree v1.4.1
 	github.com/crewjam/httperr v0.2.0
 	github.com/dchest/uniuri v1.2.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/kr/pretty v0.3.1

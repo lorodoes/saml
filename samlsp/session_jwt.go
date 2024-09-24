@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/lorodoes/saml"
 )
@@ -140,12 +140,10 @@ func (c JWTSessionCodec) Decode(signed string) (Session, error) {
 	}
 
 	// Claims validation (Audience, Issuer) using the embedded RegisteredClaims
-	_, err = claims.RegisteredClaims.GetAudience()
-	if err != nil {
+	if !claims.VerifyAudience(c.Audience, true) {
 		return nil, fmt.Errorf("expected audience %q, got %q", c.Audience, claims.Audience)
 	}
-	_, err = claims.RegisteredClaims.GetIssuer()
-	if err != nil {
+	if !claims.VerifyIssuer(c.Issuer, true) {
 		return nil, fmt.Errorf("expected issuer %q, got %q", c.Issuer, claims.Issuer)
 	}
 	if !claims.SAMLSession {

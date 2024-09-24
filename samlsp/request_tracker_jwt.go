@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/lorodoes/saml"
 )
@@ -72,12 +72,10 @@ func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
 	}
 
 	// Claims validation (Audience, Issuer, etc.) using the embedded RegisteredClaims
-	_, err = claims.RegisteredClaims.GetAudience()
-	if err != nil {
+	if !claims.VerifyAudience(s.Audience, true) {
 		return nil, fmt.Errorf("expected audience %q, got %q", s.Audience, claims.Audience)
 	}
-	_, err = claims.RegisteredClaims.GetIssuer()
-	if err != nil {
+	if !claims.VerifyIssuer(s.Issuer, true) {
 		return nil, fmt.Errorf("expected issuer %q, got %q", s.Issuer, claims.Issuer)
 	}
 	if !claims.SAMLAuthnRequest {
