@@ -40,12 +40,12 @@ func (c JWTSessionCodec) New(assertion *saml.Assertion) (Session, error) {
 	now := saml.TimeNow()
 	claims := JWTSessionClaims{}
 	claims.SAMLSession = true
-	claims.Audience = jwt.ClaimStrings{c.Audience}
+	claims.Audience = c.Audience
 	claims.Issuer = c.Issuer
-	claims.IssuedAt = jwt.NewNumericDate(now)
-	expiresat := now.Add(c.MaxAge)
-	claims.ExpiresAt = jwt.NewNumericDate(expiresat)
-	claims.NotBefore = jwt.NewNumericDate(now)
+	claims.IssuedAt = now.Unix()
+	expiresat := now.Add(c.MaxAge).Unix()
+	claims.ExpiresAt = expiresat
+	claims.NotBefore = now.Unix()
 
 	if sub := assertion.Subject; sub != nil {
 		if nameID := sub.NameID; nameID != nil {
@@ -76,8 +76,8 @@ func (c JWTSessionCodec) New(assertion *saml.Assertion) (Session, error) {
 
 	log.Debugf("Attributes: %#v", Attributes)
 
-	//strExpiresAt := fmt.Sprintf("%s", expiresat)
-	strExpiresAt := expiresat.String()
+	strExpiresAt := fmt.Sprintf("%d", expiresat)
+	//strExpiresAt := expiresat.String()
 
 	Attributes["ExpiresAtSAML"] = append(Attributes["ExpiresAtSAML"], strExpiresAt)
 
@@ -154,7 +154,7 @@ func (c JWTSessionCodec) Decode(signed string) (Session, error) {
 
 // JWTSessionClaims represents the JWT claims in the encoded session
 type JWTSessionClaims struct {
-	jwt.RegisteredClaims
+	jwt.StandardClaims
 	Attributes  Attributes `json:"attr"`
 	SAMLSession bool       `json:"saml-session"`
 }

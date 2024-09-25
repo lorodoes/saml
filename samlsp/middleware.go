@@ -70,16 +70,20 @@ func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (m *Middleware) ServeMetadata(w http.ResponseWriter, _ *http.Request) {
 	buf, _ := xml.MarshalIndent(m.ServiceProvider.Metadata(), "", "  ")
 	w.Header().Set("Content-Type", "application/samlmetadata+xml")
-	if _, err := w.Write(buf); err != nil {
+	_, err := w.Write(buf)
+	if err != nil {
+		log.Errorf("Serve Metadata Error: %s", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	return
 }
 
 // ServeACS handles requests for the SAML ACS endpoint.
 func (m *Middleware) ServeACS(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
+		log.Error("Serve ACS Error: %s", err)
 		m.OnError(w, r, err)
 		return
 	}
@@ -96,11 +100,13 @@ func (m *Middleware) ServeACS(w http.ResponseWriter, r *http.Request) {
 
 	assertion, err := m.ServiceProvider.ParseResponse(r, possibleRequestIDs)
 	if err != nil {
+		log.Errorf("Serve ACS Error: %s", err)
 		m.OnError(w, r, err)
 		return
 	}
 
 	m.CreateSessionFromAssertion(w, r, assertion, m.ServiceProvider.DefaultRedirectURI)
+	return
 }
 
 // RequireAccount is HTTP middleware that requires that each request be

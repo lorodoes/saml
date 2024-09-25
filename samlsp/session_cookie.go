@@ -58,6 +58,7 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 
 	b := compressBrotli([]byte(value))
 
+	
 	uEnc := b64.URLEncoding.EncodeToString(b)
 
 	cookie := &http.Cookie{
@@ -143,6 +144,8 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		d = cookie.Value
 		if isString(d) {
 			log.Debug("We have a string")
+		} else {
+			log.Debug("We do not have a string")
 		}
 	}
 
