@@ -129,13 +129,20 @@ func (c JWTSessionCodec) Decode(signed string) (Session, error) {
 	// Parse the token with claims and custom keyfunc
 	// The keyfunc validates the token's signature and claims
 	log.Debug("Parsing JWT")
+	log.Debugf("Signed token: %s", signed)
+
+	parts := strings.Split(signed, ".")
+	log.Debugf("JWT parts: %d", len(parts))
+	if len(parts) != 3 {
+		log.Errorf("JWT token is malformed: expected 3 segments but got %d", len(parts))
+		return nil, fmt.Errorf("JWT token is malformed: expected 3 segments but got %d", len(parts))
+	}
 	token, err := jwt.ParseWithClaims(signed, &claims, func(t *jwt.Token) (interface{}, error) {
-		// Validate signing method and return the correct key
 		if t.Method.Alg() != c.SigningMethod.Alg() {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return c.Key.Public(), nil
-	}, jwt.WithTimeFunc(saml.TimeNow))
+	}, jwt.WithValidMethods([]string{c.SigningMethod.Alg()}), jwt.WithTimeFunc(saml.TimeNow))
 	// token, err := parser.ParseWithClaims(signed, &claims, func(*jwt.Token) (interface{}, error) {
 	// 	return c.Key.Public(), nil
 	// })
