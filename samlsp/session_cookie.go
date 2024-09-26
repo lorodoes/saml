@@ -185,11 +185,20 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 
 func compressBrotli(data []byte) ([]byte, error) {
 	var b bytes.Buffer
+	in := bytes.NewReader([]byte(data))
 	w := brotli.NewWriterV2(&b, brotli.BestCompression)
-	defer w.Close()
-	_, err := w.Write(data)
+	n, err := io.Copy(w, in)
 	if err != nil {
 		log.Errorf("Compression Failed: %s", err)
+		return nil, err
+	}
+	if int(n) != len(data) {
+		log.Errorf("Copy() n=%v, want %v", n, len(data))
+		err = fmt.Errorf("copy() n=%v, want %v", n, len(data))
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		log.Errorf("Close Error after copied %d bytes: %v", n, err)
 		return nil, err
 	}
 	return b.Bytes(), nil
