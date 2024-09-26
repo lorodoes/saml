@@ -57,16 +57,21 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
+	log.Debugf("Create Sessions values: %s", value)
 	var uEnc string
 	if c.Domain != "15661444.ngrok.io" {
 		log.Debug("Compressing")
-		b := compressBrotli([]byte(value))
+		b, err := compressBrotli([]byte(value))
+		if err != nil {
+			log.Errorf("Error Compressing: %s", err)
+		}
 		uEnc = b64.URLEncoding.EncodeToString(b)
 	} else {
 		log.Debug("Skipped compression")
 		uEnc = value
 	}
 
+	log.Debugf("Encoded value: %s", uEnc)
 	cookie := &http.Cookie{
 		Name:     c.Name,
 		Domain:   c.Domain,
@@ -178,16 +183,16 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	return session, nil
 }
 
-func compressBrotli(data []byte) []byte {
+func compressBrotli(data []byte) ([]byte, error) {
 	var b bytes.Buffer
-	w := brotli.NewWriterLevel(&b, brotli.BestCompression)
+	w := brotli.NewWriterV2(&b, brotli.BestCompression)
+	defer w.Close()
 	_, err := w.Write(data)
 	if err != nil {
 		log.Errorf("Compression Failed: %s", err)
-		return nil
+		return nil, err
 	}
-	w.Close()
-	return b.Bytes()
+	return b.Bytes(), nil
 }
 
 func decompressBrotli(compressedData []byte) (string, error) {
