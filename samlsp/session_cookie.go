@@ -80,8 +80,6 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 
 	log.Debugf("Setting the Cookie")
 	http.SetCookie(w, cookie)
-	log.Debugf("Log Response: %#v", w)
-	log.Debugf("Log Cookie: %#v", cookie)
 	log.Debugf("Cookie Set")
 	return nil
 }
@@ -109,8 +107,6 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 	cookie.Path = "/"
 	cookie.Domain = c.Domain
 	http.SetCookie(w, cookie)
-	log.Debugf("Log Response: %#v", w)
-	log.Debugf("Log Cookie: %#v", cookie)
 	return nil
 }
 
@@ -118,7 +114,6 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 // ErrNoSession if there is no valid session.
 func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	log.Debugf("SAML: Get Session")
-	log.Debugf("SAML: Cookie info: %+v", c)
 
 	cookie, err := r.Cookie(c.Name)
 	if err == http.ErrNoCookie {
@@ -168,16 +163,13 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	}
 
 	log.Debugf("Decoding the Session")
-	log.Debugf("Cookie value: %s", d)
 	session, err := c.Codec.Decode(d)
 	if err != nil {
-		log.Info("We Errored")
-		log.Errorf("Error:%s", err)
+		log.Errorf("Cookie Session Decode Error:%s", err)
 		log.Debugf("Get Session decode: Error No Session")
 		return nil, ErrNoSession
 	}
 	log.Debugf("Returning the session")
-	log.Info("We are Returning the session")
 	return session, nil
 }
 
