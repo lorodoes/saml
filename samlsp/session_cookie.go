@@ -55,8 +55,6 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 		log.Debugf("Error Encoding the Session")
 		return err
 	}
-
-	log.Debugf("Create Sessions values: %s", value)
 	var uEnc string
 	if c.Domain != "15661444.ngrok.io" {
 		log.Debug("Compressing")
@@ -70,7 +68,6 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 		uEnc = value
 	}
 
-	log.Debugf("Encoded value: %s", uEnc)
 	cookie := &http.Cookie{
 		Name:     c.Name,
 		Domain:   c.Domain,
@@ -117,7 +114,6 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 // GetSession returns the current Session associated with the request, or
 // ErrNoSession if there is no valid session.
 func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
-	log.SetLevel(log.DebugLevel)
 	log.Debugf("SAML: Get Session")
 
 	cookie, err := r.Cookie(c.Name)
@@ -129,8 +125,6 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		log.Debugf("Get Session: Error: %s", err)
 		return nil, err
 	}
-
-	log.Debugf("Cookie: %s", cookie.Value)
 
 	var d string
 	// Check if the cookie is Base64URL encoded and decompress it if it is
@@ -170,7 +164,6 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 			} else {
 				log.Debug("Decompressed: We do not have a string")
 			}
-			log.Debugf("Decompressed: %s", d)
 		}
 	} else {
 		d = cookie.Value
@@ -187,7 +180,6 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	}
 
 	log.Debugf("Decoding the Session")
-	log.Debugf("Decoding the Session Encoded Value: %s", d)
 	session, err := c.Codec.Decode(d)
 	if err != nil {
 		log.Errorf("Cookie Session Decode Error:%s", err)
