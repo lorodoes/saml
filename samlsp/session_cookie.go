@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	b64 "encoding/base64"
@@ -205,9 +204,11 @@ func compressBrotli(data []byte) ([]byte, error) {
 }
 
 func decompressBrotli(compressedData []byte) (string, error) {
-	reader := brotli.NewReader(bytes.NewReader(compressedData))
-	var decompressedData strings.Builder
-	_, err := io.Copy(&decompressedData, reader)
+	var compressedDataBuf bytes.Buffer
+	compressedDataBuf.Write(compressedData)
+	br := brotli.NewReader(&compressedDataBuf)
+	var decompressedData bytes.Buffer
+	_, err := io.Copy(&decompressedData, br)
 	if err != nil {
 		log.Errorf("Decompression Failed: %s", err)
 		return "", fmt.Errorf("decompression failed: %w", err)
@@ -218,7 +219,6 @@ func decompressBrotli(compressedData []byte) (string, error) {
 func isBase64URLEncoded(s string) bool {
 	// Try to decode the string
 	_, err := b64.URLEncoding.DecodeString(s)
-	log.Debugf("Is Base64URL encoded: %s", err)
 	return err == nil
 }
 
