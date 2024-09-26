@@ -113,6 +113,7 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 // GetSession returns the current Session associated with the request, or
 // ErrNoSession if there is no valid session.
 func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
+	log.SetLevel(log.DebugLevel)
 	log.Debugf("SAML: Get Session")
 
 	cookie, err := r.Cookie(c.Name)
@@ -125,11 +126,15 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		return nil, err
 	}
 
+	log.Debugf("Cookie: %s", cookie.Value)
+
 	var d string
 	// Check if the cookie is Base64URL encoded and decompress it if it is
 	// If not, just use the cookie value as the session data
 	log.Debugf("Checking if the cookie is Base64URL encoded")
-	if isBase64URLEncoded(cookie.Value) {
+	base64_check := isBase64URLEncoded(cookie.Value)
+	log.Debugf("Base64 Check: %t", base64_check)
+	if base64_check {
 		log.Debug("We have a Base64URL encoded string")
 		log.Debug("Decoding the Base64URL encoded string")
 		// Decode the Base64URL encoded string
@@ -145,10 +150,11 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 				log.Errorf("Get Session: Error Decompress: %s", err)
 				return nil, err
 			}
+			log.Debug("We have a decompressed string")
 			if isString(d) {
-				log.Debug("We have a string")
+				log.Debug("Decompressed: We have a string")
 			} else {
-				log.Debug("We do not have a string")
+				log.Debug("Decompressed: We do not have a string")
 			}
 		}
 	} else {
@@ -161,6 +167,7 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	}
 
 	log.Debugf("Decoding the Session")
+	log.Debugf("Decoding the Session: %s", d)
 	session, err := c.Codec.Decode(d)
 	if err != nil {
 		log.Errorf("Cookie Session Decode Error:%s", err)
@@ -197,7 +204,8 @@ func decompressBrotli(compressedData []byte) (string, error) {
 func isBase64URLEncoded(s string) bool {
 	// Try to decode the string
 	_, err := b64.URLEncoding.DecodeString(s)
-	return err != nil
+	log.Debugf("Is Base64URL encoded: %s", err)
+	return err == nil
 }
 
 func isByteSlice(v interface{}) bool {
