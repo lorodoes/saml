@@ -2,6 +2,7 @@ package samlsp
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -36,7 +37,7 @@ type CookieSessionProvider struct {
 // should create a new session and modify the http response accordingly, e.g. by
 // setting a cookie.
 func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Request, assertion *saml.Assertion) error {
-	log.Debugf("Create Session")
+	log.Debugf("Create Cookie Session")
 	// Cookies should not have the port attached to them so strip it off
 	if domain, _, err := net.SplitHostPort(c.Domain); err == nil {
 		c.Domain = domain
@@ -56,10 +57,15 @@ func (c CookieSessionProvider) CreateSession(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	b := compressBrotli([]byte(value))
-
-	
-	uEnc := b64.URLEncoding.EncodeToString(b)
+	var uEnc string
+	if c.Domain != "15661444.ngrok.io" {
+		log.Debug("Compressing")
+		b := compressBrotli([]byte(value))
+		uEnc = b64.URLEncoding.EncodeToString(b)
+	} else {
+		log.Debug("Skipped compression")
+		uEnc = value
+	}
 
 	cookie := &http.Cookie{
 		Name:     c.Name,
@@ -112,6 +118,8 @@ func (c CookieSessionProvider) DeleteSession(w http.ResponseWriter, r *http.Requ
 // ErrNoSession if there is no valid session.
 func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	log.Debugf("SAML: Get Session")
+	log.Debugf("SAML: Cookie info: %+v", c)
+
 	cookie, err := r.Cookie(c.Name)
 	if err == http.ErrNoCookie {
 		log.Debugf("Get Session: Error No Session")
@@ -125,7 +133,15 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 	var d string
 	// Check if the cookie is Base64URL encoded and decompress it if it is
 	// If not, just use the cookie value as the session data
+	log.Debugf("Checking if the cookie is Base64URL encoded")
 	if isBase64URLEncoded(cookie.Value) {
+		log.Debug("We have a Base64URL encoded string")
+		log.Debug("Decoding the Base64URL encoded string")
+		// Decode the Base64URL encoded string
+		// Check if the decoded string is compressed using Brotli
+		// If it is, decompress it
+		// If not, just use the decoded string as the session data
+		log.Debug("Decoding the Base64URL encoded string")
 		uDec, _ := b64.URLEncoding.DecodeString(cookie.Value)
 		if isByteSlice(uDec) {
 			if isBrotliCompressed(uDec) {
@@ -137,6 +153,8 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 				}
 				if isString(d) {
 					log.Debug("We have a string")
+				} else {
+					log.Debug("We do not have a string")
 				}
 			}
 		}
@@ -149,6 +167,8 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		}
 	}
 
+	log.Debugf("Decoding the Session")
+	log.Debugf("Cookie value: %s", d)
 	session, err := c.Codec.Decode(d)
 	if err != nil {
 		log.Info("We Errored")
@@ -178,7 +198,8 @@ func decompressBrotli(compressedData []byte) (string, error) {
 	var decompressedData strings.Builder
 	_, err := io.Copy(&decompressedData, reader)
 	if err != nil {
-		return "", err
+		log.Errorf("Decompression Failed: %s", err)
+		return "", fmt.Errorf("decompression failed: %w", err)
 	}
 	return decompressedData.String(), nil
 }
@@ -186,8 +207,10 @@ func decompressBrotli(compressedData []byte) (string, error) {
 func isBrotliCompressed(data []byte) bool {
 	// Brotli-compressed data usually starts with these bytes
 	if len(data) > 2 && data[0] == 0xCE && data[1] == 0xB2 {
+		log.Debug("Brotli Compressed")
 		return true
 	}
+	log.Debug("Not Brotli Compressed")
 	return false
 }
 

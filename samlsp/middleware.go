@@ -81,9 +81,10 @@ func (m *Middleware) ServeMetadata(w http.ResponseWriter, _ *http.Request) {
 
 // ServeACS handles requests for the SAML ACS endpoint.
 func (m *Middleware) ServeACS(w http.ResponseWriter, r *http.Request) {
+	log.SetLevel(log.DebugLevel)
 	err := r.ParseForm()
 	if err != nil {
-		log.Error("Serve ACS Error: %s", err)
+		log.Errorf("1 Serve ACS Error: %s", err)
 		m.OnError(w, r, err)
 		return
 	}
@@ -99,14 +100,14 @@ func (m *Middleware) ServeACS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	assertion, err := m.ServiceProvider.ParseResponse(r, possibleRequestIDs)
+	log.Debugf("Error: %s", err)
 	if err != nil {
-		log.Errorf("Serve ACS Error: %s", err)
+		log.Errorf("2 Serve ACS Error: %s", err)
 		m.OnError(w, r, err)
 		return
 	}
 
 	m.CreateSessionFromAssertion(w, r, assertion, m.ServiceProvider.DefaultRedirectURI)
-	return
 }
 
 // RequireAccount is HTTP middleware that requires that each request be
@@ -130,7 +131,9 @@ func (m *Middleware) RequireAccount(handler http.Handler) http.Handler {
 			return
 		}
 
-		log.Debugf("RequireAccount: error")
+		if err != nil {
+			log.Debugf("RequireAccount: Error: %s", err)
+		}
 		m.OnError(w, r, err)
 	})
 }

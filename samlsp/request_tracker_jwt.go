@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/lorodoes/saml"
 )
@@ -26,7 +26,7 @@ var _ TrackedRequestCodec = JWTTrackedRequestCodec{}
 // JWTTrackedRequestClaims represents the JWT claims for a tracked request.
 type JWTTrackedRequestClaims struct {
 	jwt.RegisteredClaims
-	TrackedRequest   TrackedRequest
+	TrackedRequest
 	SAMLAuthnRequest bool `json:"saml-authn-request"`
 }
 
@@ -51,9 +51,12 @@ func (s JWTTrackedRequestCodec) Encode(value TrackedRequest) (string, error) {
 
 // Decode returns a Tracked request from an encoded string.
 func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
+	// parser := jwt.Parser{
+	// 	ValidMethods: []string{s.SigningMethod.Alg()},
+	// }
 	claims := JWTTrackedRequestClaims{}
 
-	// Parse the token with claims and custom keyfunc
+	//Parse the token with claims and custom keyfunc
 	token, err := jwt.ParseWithClaims(signed, &claims, func(t *jwt.Token) (interface{}, error) {
 		// Validate signing method and return the correct key
 		if t.Method.Alg() != s.SigningMethod.Alg() {
@@ -61,6 +64,9 @@ func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
 		}
 		return s.Key.Public(), nil
 	})
+	// token, err := parser.ParseWithClaims(signed, &claims, func(*jwt.Token) (interface{}, error) {
+	// 	return s.Key.Public(), nil
+	// })
 
 	if err != nil {
 		return nil, err
@@ -72,13 +78,15 @@ func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
 	}
 
 	// Claims validation (Audience, Issuer, etc.) using the embedded RegisteredClaims
-	if !claims.VerifyAudience(s.Audience, true) {
+	_, err = claims.RegisteredClaims.GetAudience()
+	if err != nil {
 		return nil, fmt.Errorf("expected audience %q, got %q", s.Audience, claims.Audience)
 	}
-	if !claims.VerifyIssuer(s.Issuer, true) {
+	_, err = claims.RegisteredClaims.GetIssuer()
+	if err != nil {
 		return nil, fmt.Errorf("expected issuer %q, got %q", s.Issuer, claims.Issuer)
 	}
-	if !claims.SAMLAuthnRequest {
+	if claims.SAMLAuthnRequest != true {
 		return nil, fmt.Errorf("expected saml-authn-request")
 	}
 
