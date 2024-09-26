@@ -181,7 +181,7 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		}
 	}
 
-	if len(d) > 1 {
+	if len(d) < 1 {
 		log.Debugf("Get Session decode: Error No Session")
 		return nil, ErrNoSession
 	}
