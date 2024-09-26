@@ -86,7 +86,7 @@ func (s JWTTrackedRequestCodec) Decode(signed string) (*TrackedRequest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("expected issuer %q, got %q", s.Issuer, claims.Issuer)
 	}
-	if claims.SAMLAuthnRequest != true {
+	if !claims.SAMLAuthnRequest {
 		return nil, fmt.Errorf("expected saml-authn-request")
 	}
 

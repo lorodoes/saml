@@ -76,7 +76,6 @@ func (m *Middleware) ServeMetadata(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	return
 }
 
 // ServeACS handles requests for the SAML ACS endpoint.

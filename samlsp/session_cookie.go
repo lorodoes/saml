@@ -139,18 +139,16 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		log.Debug("Decoding the Base64URL encoded string")
 		uDec, _ := b64.URLEncoding.DecodeString(cookie.Value)
 		if isByteSlice(uDec) {
-			if isBrotliCompressed(uDec) {
-				d, err := decompressBrotli(uDec)
-				if err != nil {
-					log.Debugf("Get Session: Error Decompress")
-					log.Errorf("Get Session: Error Decompress: %s", err)
-					return nil, err
-				}
-				if isString(d) {
-					log.Debug("We have a string")
-				} else {
-					log.Debug("We do not have a string")
-				}
+			d, err := decompressBrotli(uDec)
+			if err != nil {
+				log.Debugf("Get Session: Error Decompress")
+				log.Errorf("Get Session: Error Decompress: %s", err)
+				return nil, err
+			}
+			if isString(d) {
+				log.Debug("We have a string")
+			} else {
+				log.Debug("We do not have a string")
 			}
 		}
 	} else {
@@ -196,23 +194,10 @@ func decompressBrotli(compressedData []byte) (string, error) {
 	return decompressedData.String(), nil
 }
 
-func isBrotliCompressed(data []byte) bool {
-	// Brotli-compressed data usually starts with these bytes
-	if len(data) > 2 && data[0] == 0xCE && data[1] == 0xB2 {
-		log.Debug("Brotli Compressed")
-		return true
-	}
-	log.Debug("Not Brotli Compressed")
-	return false
-}
-
 func isBase64URLEncoded(s string) bool {
 	// Try to decode the string
 	_, err := b64.URLEncoding.DecodeString(s)
-	if err != nil {
-		return false
-	}
-	return true
+	return err != nil
 }
 
 func isByteSlice(v interface{}) bool {
