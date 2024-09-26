@@ -146,20 +146,31 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		// If it is, decompress it
 		// If not, just use the decoded string as the session data
 		log.Debug("Decoding the Base64URL encoded string")
-		uDec, _ := b64.URLEncoding.DecodeString(cookie.Value)
+		uDec, err := b64.URLEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			log.Debugf("Get Session: Error Decode")
+			log.Errorf("Get Session: Error Decode: %s", err)
+			return nil, err
+		}
 		if isByteSlice(uDec) {
-			d, err := decompressBrotli(uDec)
+			d, err = decompressBrotli(uDec)
 			if err != nil {
 				log.Debugf("Get Session: Error Decompress")
 				log.Errorf("Get Session: Error Decompress: %s", err)
 				return nil, err
 			}
 			log.Debug("We have a decompressed string")
+			if len(d) > 1 {
+				log.Debug("Decompressed: We have a string longer than 1 char")
+			} else {
+				log.Debug("Decompressed: We do not have a string longer than 1 char")
+			}
 			if isString(d) {
 				log.Debug("Decompressed: We have a string")
 			} else {
 				log.Debug("Decompressed: We do not have a string")
 			}
+			log.Debugf("Decompressed: %s", d)
 		}
 	} else {
 		d = cookie.Value
@@ -170,8 +181,13 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 		}
 	}
 
+	if len(d) > 1 {
+		log.Debugf("Get Session decode: Error No Session")
+		return nil, ErrNoSession
+	}
+
 	log.Debugf("Decoding the Session")
-	log.Debugf("Decoding the Session: %s", d)
+	log.Debugf("Decoding the Session Encoded Value: %s", d)
 	session, err := c.Codec.Decode(d)
 	if err != nil {
 		log.Errorf("Cookie Session Decode Error:%s", err)
