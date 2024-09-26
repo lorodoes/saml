@@ -205,15 +205,22 @@ func compressBrotli(data []byte) ([]byte, error) {
 
 func decompressBrotli(compressedData []byte) (string, error) {
 	var compressedDataBuf bytes.Buffer
-	compressedDataBuf.Write(compressedData)
+	_, err := compressedDataBuf.Write(compressedData)
+	if err != nil {
+		return "", fmt.Errorf("failed to write compressed data to buffer: %w", err)
+	}
 	br := brotli.NewReader(&compressedDataBuf)
 	var decompressedData bytes.Buffer
-	_, err := io.Copy(&decompressedData, br)
+	_, err = io.Copy(&decompressedData, br)
 	if err != nil {
-		log.Errorf("Decompression Failed: %s", err)
 		return "", fmt.Errorf("decompression failed: %w", err)
 	}
-	return decompressedData.String(), nil
+	var returnString = decompressedData.String()
+	if isString(returnString) && len(returnString) > 1 {
+		return returnString, nil
+	} else {
+		return "", fmt.Errorf("decompressed data is not a valid string")
+	}
 }
 
 func isBase64URLEncoded(s string) bool {
