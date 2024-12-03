@@ -118,8 +118,7 @@ func (c CookieSessionProvider) GetSession(r *http.Request) (Session, error) {
 
 	cookie, err := r.Cookie(c.Name)
 	if err == http.ErrNoCookie {
-		log.Debugf("Get Session: Error No Session")
-		log.Errorf("Get Session: Error No Session: %s", err)
+		log.Debugf("Get Session: Error No Session: %s", err)
 		return nil, ErrNoSession
 	} else if err != nil {
 		log.Debugf("Get Session: Error: %s", err)
